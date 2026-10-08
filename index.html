@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Physics 355 — Lesson 11: Two-state time evolution</title>
+<style>
+  :root {
+    --bg: #f7f4ef;
+    --ink: #1c1b19;
+    --muted: #5c574f;
+    --panel: #fffdf9;
+    --line: #d9d2c5;
+    --accent: #0b6e4f;
+    --teal: #0d7377;
+    --orange: #c45c26;
+    --blue: #2f5d8c;
+    --red: #a33b3b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+    color: var(--ink);
+    background:
+      radial-gradient(ellipse at 10% 0%, #efe6d6 0%, transparent 45%),
+      radial-gradient(ellipse at 90% 10%, #e4efe9 0%, transparent 40%),
+      var(--bg);
+    line-height: 1.35;
+  }
+  header {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 1.25rem 1.25rem 0.5rem;
+  }
+  header h1 {
+    margin: 0 0 0.35rem;
+    font-size: 1.45rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  header p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+    max-width: 54rem;
+  }
+  .math {
+    font-family: "Times New Roman", Times, serif;
+    font-style: italic;
+  }
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0.75rem 1.25rem 2rem;
+    display: grid;
+    grid-template-columns: 1.4fr 1fr;
+    gap: 1rem;
+  }
+  @media (max-width: 920px) {
+    .wrap { grid-template-columns: 1fr; }
+  }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 0.85rem 0.9rem 0.95rem;
+    box-shadow: 0 1px 0 rgba(28,27,25,0.04);
+  }
+  .panel h2 {
+    margin: 0 0 0.55rem;
+    font-size: 0.98rem;
+    font-weight: 600;
+  }
+  .stack { display: flex; flex-direction: column; gap: 0.85rem; }
+  canvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+  }
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.65rem 1rem;
+    align-items: end;
+  }
+  .controls .full { grid-column: 1 / -1; }
+  label {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  label strong { color: var(--ink); font-weight: 600; }
+  input[type="range"] { width: 100%; accent-color: var(--accent); }
+  .btnrow { display: flex; flex-wrap: wrap; gap: 0.45rem; }
+  button {
+    appearance: none;
+    border: 1px solid var(--line);
+    background: #fff;
+    color: var(--ink);
+    border-radius: 6px;
+    padding: 0.42rem 0.75rem;
+    font: inherit;
+    font-size: 0.88rem;
+    cursor: pointer;
+  }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  button:hover { filter: brightness(0.98); }
+  .readout {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.45rem;
+    font-variant-numeric: tabular-nums;
+  }
+  @media (max-width: 640px) {
+    .readout { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  .stat {
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.45rem 0.55rem;
+    background: #fff;
+  }
+  .stat .k { font-size: 0.72rem; color: var(--muted); }
+  .stat .v { font-size: 0.98rem; font-weight: 600; margin-top: 0.1rem; }
+  .note {
+    margin: 0.55rem 0 0;
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1rem;
+    margin: 0.4rem 0 0.15rem;
+    font-size: 0.78rem;
+    color: var(--muted);
+  }
+  .swatch {
+    display: inline-block;
+    width: 0.85rem;
+    height: 0.28rem;
+    border-radius: 2px;
+    margin-right: 0.3rem;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Two-state time evolution — infinite square well</h1>
+  <p>
+    Lesson&nbsp;11 worked example. Default initial state:
+    <span class="math">|Ψ(0)⟩ = (1/√2)(|ψ₁⟩ + |ψ₂⟩)</span>.
+    Energy probabilities stay frozen while
+    <span class="math">|Ψ(x,t)|²</span> sloshes from relative-phase evolution.
+    Time is in units of <span class="math">τ = ℏ/E₁</span>;
+    <span class="math">ω = 3E₁/ℏ</span> so the density period is
+    <span class="math">T = 2π/3 τ</span>.
+  </p>
+</header>
+
+<div class="wrap">
+  <div class="stack">
+    <section class="panel">
+      <h2>Probability density <span class="math">a |Ψ(x,t)|²</span></h2>
+      <canvas id="dens" width="720" height="320" aria-label="Probability density plot"></canvas>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--teal)"></i>density</span>
+        <span><i class="swatch" style="background:var(--red)"></i><span class="math">⟨x̂⟩/a</span></span>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Wave function (global phase stripped)</h2>
+      <canvas id="psi" width="720" height="260" aria-label="Real and imaginary parts of Psi"></canvas>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--blue)"></i><span class="math">Re Ψ̃</span></span>
+        <span><i class="swatch" style="background:var(--orange)"></i><span class="math">Im Ψ̃</span></span>
+      </div>
+      <p class="note">
+        <span class="math">Ψ̃</span> factors out
+        <span class="math">e<sup>−i E₁ t/ℏ</sup></span>
+        so only the physically relevant relative phase remains (Lesson&nbsp;11).
+      </p>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="panel">
+      <h2>Coefficient phasors</h2>
+      <canvas id="phasor" width="480" height="280" aria-label="Complex plane phasors for a1 and a2"></canvas>
+      <div class="legend">
+        <span><i class="swatch" style="background:var(--blue)"></i><span class="math">a₁(t)</span></span>
+        <span><i class="swatch" style="background:var(--orange)"></i><span class="math">a₂(t)</span></span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Controls</h2>
+      <div class="controls">
+        <div class="full btnrow">
+          <button id="play" class="primary" type="button">Play</button>
+          <button id="reset" type="button">Reset to lesson default</button>
+        </div>
+        <label class="full">
+          <span><strong>Time</strong> <span id="tLabel">0.00</span> <span class="math">τ</span></span>
+          <input id="time" type="range" min="0" max="4.1888" step="0.001" value="0" />
+        </label>
+        <label>
+          <span><strong>Speed</strong></span>
+          <input id="speed" type="range" min="0.1" max="3" step="0.05" value="1" />
+        </label>
+        <label>
+          <span><strong>|a₁|</strong> = <span id="a1Label">0.707</span>
+            (then <span class="math">|a₂| = √(1 − |a₁|²)</span>)</span>
+          <input id="amp1" type="range" min="0.05" max="0.995" step="0.005" value="0.7071" />
+        </label>
+        <label class="full">
+          <span><strong>Initial relative phase</strong>
+            <span class="math">φ = arg(a₂/a₁)</span> =
+            <span id="phiLabel">0.00</span> rad</span>
+          <input id="phi" type="range" min="-3.1416" max="3.1416" step="0.01" value="0" />
+        </label>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Readouts</h2>
+      <div class="readout">
+        <div class="stat"><div class="k"><span class="math">cos(ωt − φ)</span></div><div class="v" id="cosVal">1.000</div></div>
+        <div class="stat"><div class="k"><span class="math">P(E₁)</span></div><div class="v" id="p1Val">0.500</div></div>
+        <div class="stat"><div class="k"><span class="math">P(E₂)</span></div><div class="v" id="p2Val">0.500</div></div>
+        <div class="stat"><div class="k"><span class="math">⟨Ĥ⟩/E₁</span></div><div class="v" id="hVal">2.500</div></div>
+        <div class="stat"><div class="k"><span class="math">⟨x̂⟩/a</span></div><div class="v" id="xVal">0.500</div></div>
+        <div class="stat"><div class="k">Period of <span class="math">|Ψ|²</span></div><div class="v"><span class="math">2π/3 τ</span></div></div>
+      </div>
+      <p class="note">
+        <span class="math">P(Eₙ) = |aₙ|²</span> and
+        <span class="math">⟨Ĥ⟩</span> do not change with time for a time-independent
+        Hamiltonian. Only relative phases move.
+      </p>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+
+  const SQRT2 = Math.SQRT2;
+  const TWO_PI = Math.PI * 2;
+  // Time unit τ = ℏ/E₁.  ω = 3 E₁/ℏ ⇒ ωτ = 3.
+  const OMEGA = 3;
+  const PERIOD = TWO_PI / OMEGA;
+
+  const densCanvas = document.getElementById('dens');
+  const psiCanvas = document.getElementById('psi');
+  const phasorCanvas = document.getElementById('phasor');
+  const densCtx = densCanvas.getContext('2d');
+  const psiCtx = psiCanvas.getContext('2d');
+  const phasorCtx = phasorCanvas.getContext('2d');
+
+  const els = {
+    play: document.getElementById('play'),
+    reset: document.getElementById('reset'),
+    time: document.getElementById('time'),
+    speed: document.getElementById('speed'),
+    amp1: document.getElementById('amp1'),
+    phi: document.getElementById('phi'),
+    tLabel: document.getElementById('tLabel'),
+    a1Label: document.getElementById('a1Label'),
+    phiLabel: document.getElementById('phiLabel'),
+    cosVal: document.getElementById('cosVal'),
+    p1Val: document.getElementById('p1Val'),
+    p2Val: document.getElementById('p2Val'),
+    hVal: document.getElementById('hVal'),
+    xVal: document.getElementById('xVal'),
+  };
+
+  els.time.max = String(2 * PERIOD);
+
+  const state = {
+    t: 0,
+    playing: false,
+    speed: 1,
+    amp1: 1 / SQRT2,
+    phi0: 0,
+    lastTs: null,
+  };
+
+  /** φ_n(ξ) = √a ψ_n(x) = √2 sin(n π ξ); ∫₀¹ |√a Ψ|² dξ = 1 */
+  function phiN(n, xi) {
+    return Math.SQRT2 * Math.sin(n * Math.PI * xi);
+  }
+
+  function a2mag() {
+    return Math.sqrt(Math.max(0, 1 - state.amp1 * state.amp1));
+  }
+
+  /** Full coefficients a_n(t) = a_n(0) exp(-i n² t) in units τ = ℏ/E₁ */
+  function coeffs(t) {
+    const m1 = state.amp1;
+    const m2 = a2mag();
+    const th1 = -1 * t;
+    const th2 = -4 * t + state.phi0;
+    return {
+      a1: { re: m1 * Math.cos(th1), im: m1 * Math.sin(th1), mag: m1 },
+      a2: { re: m2 * Math.cos(th2), im: m2 * Math.sin(th2), mag: m2 },
+    };
+  }
+
+  /**
+   * Global-phase-stripped wavefunction (multiply by e^{+i E₁ t/ℏ}):
+   *   Ψ̃ = a₁(0) φ₁ + a₂(0) e^{-i ω t} φ₂
+   * with a₁(0) = |a₁| real, a₂(0) = |a₂| e^{i φ}.
+   */
+  function psiTilde(xi, t) {
+    const m1 = state.amp1;
+    const m2 = a2mag();
+    const phase = -OMEGA * t + state.phi0;
+    const c = Math.cos(phase);
+    const s = Math.sin(phase);
+    const p1 = phiN(1, xi);
+    const p2 = phiN(2, xi);
+    return {
+      re: m1 * p1 + m2 * c * p2,
+      im: m2 * s * p2,
+    };
+  }
+
+  function density(xi, t) {
+    const w = psiTilde(xi, t);
+    return w.re * w.re + w.im * w.im;
+  }
+
+  function expectationXOverA(t) {
+    const N = 480;
+    let s = 0;
+    for (let i = 0; i <= N; i++) {
+      const xi = i / N;
+      const w = (i === 0 || i === N) ? 0.5 : 1;
+      s += w * xi * density(xi, t);
+    }
+    return s / N;
+  }
+
+  function clear(ctx, canvas) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  function drawAxes(ctx, canvas, pad, x0, x1, y0, y1, xlabel, ylabel) {
+    const W = canvas.width;
+    const H = canvas.height;
+    const L = pad.l;
+    const R = W - pad.r;
+    const B = H - pad.b;
+    const T = pad.t;
+    const X = (x) => L + ((x - x0) / (x1 - x0)) * (R - L);
+    const Y = (y) => B - ((y - y0) / (y1 - y0)) * (B - T);
+
+    ctx.strokeStyle = '#cfc7b8';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(L, T);
+    ctx.lineTo(L, B);
+    ctx.lineTo(R, B);
+    ctx.stroke();
+
+    ctx.fillStyle = '#5c574f';
+    ctx.font = '13px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(xlabel, (L + R) / 2, H - 8);
+    ctx.save();
+    ctx.translate(14, (T + B) / 2);
+    ctx.rotate(-Math.PI / 2);
+    ctx.fillText(ylabel, 0, 0);
+    ctx.restore();
+
+    [0, 0.5, 1].forEach((xv) => {
+      if (xv < x0 || xv > x1) return;
+      const px = X(xv);
+      ctx.strokeStyle = '#e8e1d4';
+      ctx.beginPath();
+      ctx.moveTo(px, T);
+      ctx.lineTo(px, B);
+      ctx.stroke();
+      ctx.fillStyle = '#5c574f';
+      ctx.textAlign = 'center';
+      ctx.fillText(String(xv), px, B + 14);
+    });
+
+    return { X, Y, L, R, T, B };
+  }
+
+  function drawDensity() {
+    const ctx = densCtx;
+    const canvas = densCanvas;
+    clear(ctx, canvas);
+    const pad = { l: 48, r: 16, t: 18, b: 36 };
+    const yMax = 3.2;
+    const { X, Y, L, R, T, B } = drawAxes(ctx, canvas, pad, 0, 1, 0, yMax, 'ξ = x/a', 'a |Ψ|²');
+
+    const N = 360;
+    ctx.beginPath();
+    for (let i = 0; i <= N; i++) {
+      const xi = i / N;
+      const y = density(xi, state.t);
+      const px = X(xi);
+      const py = Y(Math.min(y, yMax));
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = '#0d7377';
+    ctx.lineWidth = 2.4;
+    ctx.stroke();
+    ctx.lineTo(X(1), Y(0));
+    ctx.lineTo(X(0), Y(0));
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(13,115,119,0.12)';
+    ctx.fill();
+
+    const xbar = expectationXOverA(state.t);
+    const px = X(xbar);
+    ctx.strokeStyle = '#a33b3b';
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    ctx.moveTo(px, T);
+    ctx.lineTo(px, B);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#a33b3b';
+    ctx.beginPath();
+    ctx.moveTo(px, B);
+    ctx.lineTo(px - 6, B + 9);
+    ctx.lineTo(px + 6, B + 9);
+    ctx.closePath();
+    ctx.fill();
+    ctx.font = '12px Georgia, serif';
+    ctx.textAlign = px > (L + R) / 2 ? 'right' : 'left';
+    ctx.fillText('⟨x⟩/a = ' + xbar.toFixed(3), px + (px > (L + R) / 2 ? -8 : 8), T + 12);
+  }
+
+  function drawPsi() {
+    const ctx = psiCtx;
+    const canvas = psiCanvas;
+    clear(ctx, canvas);
+    const pad = { l: 48, r: 16, t: 18, b: 36 };
+    const yMax = 2.4;
+    const { X, Y } = drawAxes(ctx, canvas, pad, 0, 1, -yMax, yMax, 'ξ = x/a', '√a  Ψ̃');
+
+    ctx.strokeStyle = '#d9d2c5';
+    ctx.beginPath();
+    ctx.moveTo(X(0), Y(0));
+    ctx.lineTo(X(1), Y(0));
+    ctx.stroke();
+
+    const N = 360;
+    ctx.beginPath();
+    for (let i = 0; i <= N; i++) {
+      const xi = i / N;
+      const w = psiTilde(xi, state.t);
+      const px = X(xi);
+      const py = Y(w.re);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = '#2f5d8c';
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+
+    ctx.beginPath();
+    for (let i = 0; i <= N; i++) {
+      const xi = i / N;
+      const w = psiTilde(xi, state.t);
+      const px = X(xi);
+      const py = Y(w.im);
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.strokeStyle = '#c45c26';
+    ctx.lineWidth = 2.2;
+    ctx.stroke();
+  }
+
+  function drawPhasors() {
+    const ctx = phasorCtx;
+    const canvas = phasorCanvas;
+    clear(ctx, canvas);
+    const W = canvas.width;
+    const H = canvas.height;
+    const cx = W * 0.5;
+    const cy = H * 0.52;
+    const R = Math.min(W, H) * 0.36;
+
+    ctx.strokeStyle = '#e0d8ca';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, TWO_PI);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#cfc7b8';
+    ctx.beginPath();
+    ctx.moveTo(cx - R - 12, cy);
+    ctx.lineTo(cx + R + 12, cy);
+    ctx.moveTo(cx, cy + R + 12);
+    ctx.lineTo(cx, cy - R - 12);
+    ctx.stroke();
+    ctx.fillStyle = '#5c574f';
+    ctx.font = '12px Georgia, serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('Re', cx + R + 16, cy + 4);
+    ctx.textAlign = 'center';
+    ctx.fillText('Im', cx, cy - R - 16);
+
+    const { a1, a2 } = coeffs(state.t);
+    const drawArrow = (z, color, label) => {
+      const scale = R / 1.05;
+      const x = cx + z.re * scale;
+      const y = cy - z.im * scale;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 2.4;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(x, y);
+      ctx.stroke();
+      const ang = Math.atan2(cy - y, x - cx);
+      const ah = 9;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x - ah * Math.cos(ang - 0.35), y + ah * Math.sin(ang - 0.35));
+      ctx.lineTo(x - ah * Math.cos(ang + 0.35), y + ah * Math.sin(ang + 0.35));
+      ctx.closePath();
+      ctx.fill();
+      ctx.font = '13px Georgia, serif';
+      ctx.textAlign = x >= cx ? 'left' : 'right';
+      ctx.fillText(label, x + (x >= cx ? 8 : -8), y - 6);
+    };
+
+    drawArrow(a1, '#2f5d8c', 'a₁');
+    drawArrow(a2, '#c45c26', 'a₂');
+
+    ctx.fillStyle = '#5c574f';
+    ctx.font = '12px Georgia, serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(
+      '|a₁| = ' + a1.mag.toFixed(3) + '    |a₂| = ' + a2.mag.toFixed(3),
+      16,
+      22
+    );
+  }
+
+  function updateReadouts() {
+    const { a1, a2 } = coeffs(state.t);
+    const p1 = a1.mag * a1.mag;
+    const p2 = a2.mag * a2.mag;
+    // Cross-term cosine in the stripped gauge: cos(ωt − φ)
+    const cosEff = Math.cos(OMEGA * state.t - state.phi0);
+    const xbar = expectationXOverA(state.t);
+
+    els.tLabel.textContent = state.t.toFixed(2);
+    els.a1Label.textContent = state.amp1.toFixed(3);
+    els.phiLabel.textContent = state.phi0.toFixed(2);
+    els.cosVal.textContent = cosEff.toFixed(3);
+    els.p1Val.textContent = p1.toFixed(3);
+    els.p2Val.textContent = p2.toFixed(3);
+    els.hVal.textContent = (p1 * 1 + p2 * 4).toFixed(3);
+    els.xVal.textContent = xbar.toFixed(3);
+
+    if (document.activeElement !== els.time) {
+      els.time.value = String(((state.t % (2 * PERIOD)) + 2 * PERIOD) % (2 * PERIOD));
+    }
+  }
+
+  function render() {
+    drawDensity();
+    drawPsi();
+    drawPhasors();
+    updateReadouts();
+  }
+
+  function tick(ts) {
+    if (state.playing) {
+      if (state.lastTs == null) state.lastTs = ts;
+      const dt = (ts - state.lastTs) / 1000;
+      state.lastTs = ts;
+      state.t += dt * state.speed * 0.35;
+      if (state.t > 1e6) state.t %= (2 * PERIOD);
+    } else {
+      state.lastTs = null;
+    }
+    render();
+    requestAnimationFrame(tick);
+  }
+
+  els.play.addEventListener('click', () => {
+    state.playing = !state.playing;
+    els.play.textContent = state.playing ? 'Pause' : 'Play';
+  });
+
+  els.reset.addEventListener('click', () => {
+    state.t = 0;
+    state.playing = false;
+    state.amp1 = 1 / SQRT2;
+    state.phi0 = 0;
+    state.speed = 1;
+    els.play.textContent = 'Play';
+    els.amp1.value = String(state.amp1);
+    els.phi.value = '0';
+    els.speed.value = '1';
+    els.time.value = '0';
+    render();
+  });
+
+  els.time.addEventListener('input', () => {
+    state.t = parseFloat(els.time.value);
+    state.playing = false;
+    els.play.textContent = 'Play';
+    render();
+  });
+  els.speed.addEventListener('input', () => {
+    state.speed = parseFloat(els.speed.value);
+  });
+  els.amp1.addEventListener('input', () => {
+    state.amp1 = parseFloat(els.amp1.value);
+    render();
+  });
+  els.phi.addEventListener('input', () => {
+    state.phi0 = parseFloat(els.phi.value);
+    render();
+  });
+
+  render();
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
